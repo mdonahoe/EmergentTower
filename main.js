@@ -34,13 +34,13 @@ function square(){
     ctx.stroke();
 }
 
-var sss = .05;
+var sss = .025;
 var thrust = 0;
 
-var STEP = 0;
+var STEP = 1;
 var step = 0;
 var pair = 0;
-var create_constraint = function(a,b){
+var strand = function(a,b){
     //return new Constraint(a,b,.1);
     if (Math.abs(a.n - b.n) == 1) {
         return new Constraint(a,b,.1);
@@ -48,16 +48,36 @@ var create_constraint = function(a,b){
     if (a.n == 2 * b.n) return new Constraint(a,b,.2);
     return 0;
 }
+var r2 = Math.sqrt(2);
+truss = function(a,b){
+    var d = a.n - b.n;
+    if (d == 1) return new Constraint(a,b,.1);
+    if (d == 2) return new Constraint(a,b,.1*r2);
+    if (d == 3) return new Constraint(a,b,.1);
+    if (d < 6)
+        return new Constraint(a, b, 10, .1);
+}
+wheel = function(a,b){
+    if (b.n == 0) return new Constraint(a,b,.3);
+    if (a.n - b.n == 1) return new Constraint(a,b,.1);
+    if (a.n - b.n == 2) return new Constraint(a,b,.2,.15);
+}
+var M = 0;
 var draw = function(){
     t += dt;
     if (step == 0){
         step = STEP;
         if (pair == 0){
-            pair = objects.length;
-            objects.unshift(new Particle(pair));
+            pair = M;
+            M+=1;
+            if (pair > 10) step  = -1;
+            for (var s in species){
+                species[s].birth();
+            }
         } else {
-            var c = create_constraint(objects[0], objects[pair]);
-            if (c) constraints.push(c);
+            for (var s in species){
+                species[s].create(0,pair);
+            }
             pair-=1;
         }
     } else {
@@ -66,11 +86,38 @@ var draw = function(){
     ctx.fillStyle = 'gray';
     square();
     // empty the objects list into a temp list
+    for (var s in species){
+        species[s].update();
+    }
+}
+
+dt = .1;
+
+function Species(f,c){
+    this.f = f; // constraint creation function
+    this.color = c;
+    this.xs = [];
+    this.cs = [];
+}
+Species.prototype.create = function(i,j){
+    var a = this.xs[i];
+    var b = this.xs[j];
+    if (a ==  undefined || b == undefined) return;
+    var c = this.f(a,b);
+    if (c) this.cs.push(c);
+}
+Species.prototype.birth = function(){
+    this.xs.unshift(new Particle(this.xs.length));
+}
+Species.prototype.update = function(){
+    ctx.fillStyle = this.color;
+    var constraints = this.cs;
+    var objects = this.xs;
     for (var i in objects){
         objects[i].update();
     }
     var N = constraints.length;
-    for (var j=0;j<100;j++){
+    for (var j=0;j<1000;j++){
         var i = Math.floor(N * Math.random());
         constraints[i].satisfy();
     }
@@ -81,15 +128,23 @@ var draw = function(){
         constraints[i].draw();
     }
 }
-
-dt = .1;
-
 function Particle(n){
     this.n = n;
     this.x = Math.random();
     this.y = Math.random();
     this._x = this.x;
     this._y = this.y;
+}
+Particle.prototype.add = function(dx,dy){
+    this.x += dx;
+    this.y += dy;
+    // todo, prevent movements outside of r from _x,_y
+}
+function FixedPoint(x,y){
+    this.x = x;
+    this.y = y;
+}
+FixedPoint.prototype.add = function(dx,dy){
 }
 
 Particle.prototype.update = function(){
@@ -107,7 +162,7 @@ Particle.prototype.update = function(){
     this._x = this.x;
     this.x += dx;
 
-    //this.y += .002;
+    this.y += .001;
     if (this.y > 1) {
         //this._y = .5 * (this._y + this.y);
         this.y = 1; //bounce
@@ -115,31 +170,37 @@ Particle.prototype.update = function(){
         //this._y = .5 * (this._y + this.y);
         this.y = 0; //bounce
     }
-    var dy = this.y - this._y;
+    var dy = .9*(this.y - this._y);
     this._y = this.y;
     this.y += dy;
 }
 
-function Constraint(a,b,dist){
+function Constraint(a,b,maxdist,mindist){
+    if (mindist == undefined) mindist = maxdist;
     this.a = a;
     this.b = b;
-    this.d = dist;
+    this.min = mindist;
+    this.max = maxdist;
 }
 Constraint.prototype.satisfy=function(){
     // move the points to the required length
     var dx = this.a.x - this.b.x;
     var dy = this.a.y - this.b.y;
     var m = Math.sqrt(dx*dx+dy*dy);
-    var dm = this.d / (m + .001) - 1;
-    var mx = dx * dm * .10;
-    this.a.x += mx;
-    this.b.x -= mx;
-    var my = dy * dm;
-    this.a.y += my;
-    this.b.y -= my;
+    var dm = 0;
+    if (m > this.max){
+        dm = Math.max(-.01, -(m - this.max) / m);
+    } else if (m < this.min){
+        dm = Math.min(.01, -(m - this.min) / m);
+    }
+    var mx = dx * dm * .5;
+    var my = dy * dm * .5;
+    this.a.add(mx, my);
+    this.b.add(-mx, -my);
 }
 Constraint.prototype.draw = function(){
     // line
+    if (this.min + .1 < this.max) return;
     ctx.strokeStyle = 'black';
     ctx.lineWidth = .1 * sss;
     ctx.beginPath();
@@ -149,8 +210,6 @@ Constraint.prototype.draw = function(){
 }
 Particle.prototype.draw = function(){
     ctx.save();
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 1;
     //ctx.fillStyle = 'black';
     ctx.translate(this.x, this.y);
     //ctx.rotate(this.t);
@@ -161,9 +220,15 @@ Particle.prototype.draw = function(){
     ctx.beginPath();
     ctx.moveTo(0,0);
     ctx.lineTo(0,1);
-    ctx.stroke();
+    ctx.lineTo(1,1);
+    ctx.lineTo(1,0);
+    ctx.lineTo(0,0);
+    ctx.fill();
     ctx.restore();
 }
+var species = [
+    new Species(wheel, 'blue'),
+    new Species(truss,'red'),
+    new Species(strand,'green')
+];
 
-var objects = [];
-var constraints = [];
