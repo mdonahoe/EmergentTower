@@ -3,6 +3,8 @@ function resize_canvas(c){
     c = gg('x');
     canvasWidth = window.innerWidth;
     canvasHeight = window.innerHeight;
+    canvasWidth = Math.min(canvasWidth, canvasHeight);
+    canvasHeight = canvasWidth;
     c.setAttribute('width',canvasWidth);
     c.setAttribute('height',canvasHeight);
     //taken from http://stackoverflow.com/questions/1152203/centering-a-canvas/1646370
@@ -61,7 +63,7 @@ var draw = function(){
     } else {
         step -= 1;
     }
-    ctx.fillStyle = 'blue';
+    ctx.fillStyle = 'gray';
     square();
     // empty the objects list into a temp list
     for (var i in objects){
