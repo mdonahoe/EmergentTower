@@ -6,9 +6,14 @@ body {
     padding:0;
     margin:0;
 }
+.program {
+    width: 400px;
+    height: 200px;
+    font-family: monospace;
+}
 </style>
 <title>PG Robots</title>
 </head>
 <body>
-    <canvas height=400 width=400 id=x></canvas>
-    <div id=output></div>
+    <canvas style="float:left;"id=x></canvas>
+    <div style"float:left;"><div id=programs></div><input type=button onclick=replay() value=execute /></div>
