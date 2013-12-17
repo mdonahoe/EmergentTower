@@ -1,11 +1,7 @@
 var gg = function(x) { return document.getElementById(x);}
+
 function resize_canvas(c){
     c = gg('x');
-    /*canvasWidth = window.innerWidth;
-    canvasHeight = window.innerHeight;
-    canvasWidth = Math.min(canvasWidth, canvasHeight);
-    canvasHeight = canvasWidth;
-    */
     canvasWidth = 500;
     canvasHeight = 500;;
     c.setAttribute('width', canvasWidth);
@@ -24,7 +20,7 @@ window.onload = function(){
     setInterval(draw, 33);
     new Species(wheel, 'blue',  .25);
     new Species(truss, 'red',   .75);
-    //new Species(strand,'green', .75)
+    new Species(strand,'green', .5);
 }
 
 function square(){
@@ -42,36 +38,36 @@ function square(){
 
 var sss = .025;
 var thrust = 0;
-
-var STEP = 1;
+var STEPS_PER_BIRTH = 1;
 var step = 0;
 var pair = 0;
 var M = 1;
+
 var strand = function(a,b){
-    //return new Constraint(a,b,.1);
     if (Math.abs(a.n - b.n) == 1) {
         return new Constraint(a,b,.1);
     }
     if (a.n == 2 * b.n) return new Constraint(a,b,.2);
     return 0;
 }
-var r2 = Math.sqrt(2);
-truss = function(a,b){
+
+var truss = function(a,b){
     var d = a.n - b.n;
     c = .1 * Math.max(.02, 1 - Math.sqrt(a.n)/10.0);
     if (d == 1) return new Constraint(a,b,c);
-    if (d == 2) return new Constraint(a,b,c*r2);
-    //if (d == 3) return new Constraint(a,b,c);
+    if (d == 2) return new Constraint(a,b,c*Math.sqrt(2));
 }
+
 wheel = function(a,b){
     if (b.n == 0) return new Constraint(a,b,.23);
     if (a.n - b.n == 1) return new Constraint(a,b,.1);
     if (a.n - b.n == 2) return new Constraint(a,b,.2,.15);
 }
+
 var draw = function(){
     t += dt;
     if (step == 0){
-        step = STEP;
+        step = STEPS_PER_BIRTH;
         if (pair == 0){
             pair = M;
             M+=1;
@@ -83,7 +79,7 @@ var draw = function(){
             for (var s in species){
                 species[s].create(0,pair);
             }
-            pair-=1;
+            pair -= 1;
         }
     } else {
         step -= 1;
@@ -106,6 +102,7 @@ function Species(f,c, x){
     species.push(this);
     this.reset();
 }
+
 Species.prototype.reset = function(){
     this.xs = [new FixedPoint(this.x, 1)];
     this.cs = [];
@@ -113,6 +110,7 @@ Species.prototype.reset = function(){
     eval("var g = "+f); // constraint creation function
     this.f = g;
 }
+
 Species.prototype.create = function(i,j){
     var a = this.xs[i];
     var b = this.xs[j];
@@ -120,9 +118,11 @@ Species.prototype.create = function(i,j){
     var c = this.f(a,b);
     if (c) this.cs.push(c);
 }
+
 Species.prototype.birth = function(){
     this.xs.unshift(new Particle(this.xs.length));
 }
+
 Species.prototype.update = function(){
     ctx.fillStyle = this.color;
     var constraints = this.cs;
@@ -142,6 +142,7 @@ Species.prototype.update = function(){
         constraints[i].draw();
     }
 }
+
 function Particle(n){
     this.n = n;
     this.x = Math.random();
@@ -149,52 +150,27 @@ function Particle(n){
     this._x = this.x;
     this._y = this.y;
 }
+
 Particle.prototype.add = function(dx,dy){
     this.x += dx;
     this.y += dy;
     // todo, prevent movements outside of r from _x,_y
 }
+
 function FixedPoint(x,y){
     this.x = x;
     this.y = y;
     this.n = 0;
 }
-FixedPoint.prototype.add = function(dx,dy){
-}
-FixedPoint.prototype.update = function(){};
-/*function(){
-    ctx.save();
-    //ctx.fillStyle = 'black';
-    ctx.translate(this.x, this.y);
-    //ctx.rotate(this.t);
-    ctx.scale(sss, sss);
-    ctx.translate(0, -.5);
-    //square();
-    // the ship shape
-    ctx.beginPath();
-    ctx.moveTo(0,0);
-    ctx.lineTo(0,1);
-    ctx.lineTo(1,1);
-    ctx.lineTo(1,0);
-    ctx.lineTo(0,0);
-    ctx.fill();
-    ctx.restore();
-};*/
 
+FixedPoint.prototype.add = function(dx,dy){};
+
+FixedPoint.prototype.update = function(){};
 
 Particle.prototype.update = function(){
     // Verlet integration
     // dont track velocity directly
     // track pos and old pos
-    /*
-    if (this.x > 1) {
-        //this._x = .5 * (this._x + this.x);
-        this.x = 1; //bounce
-    } else if (this.x < 0){
-        //this._x = .5 * (this._x + this.x);
-        this.x = 0; //bounce
-    }
-    */
     var dx = .9*(this.x - this._x);
     this._x = this.x;
     this.x += dx;
@@ -203,10 +179,8 @@ Particle.prototype.update = function(){
     if (this.y > 1) {
         this._y = this.y;
         this.y = 1; //bounce
-    }/* else if (this.y < 0){
-        //this._y = .5 * (this._y + this.y);
-        this.y = 0; //bounce
-    }*/
+    }
+
     var dy = .9*(this.y - this._y);
     this._y = this.y;
     this.y += dy;
@@ -219,6 +193,7 @@ function Constraint(a,b,maxdist,mindist){
     this.min = mindist;
     this.max = maxdist;
 }
+
 Constraint.prototype.satisfy=function(){
     // move the points to the required length
     var dx = this.a.x - this.b.x;
@@ -235,6 +210,7 @@ Constraint.prototype.satisfy=function(){
     this.a.add(mx, my);
     this.b.add(-mx, -my);
 }
+
 Constraint.prototype.draw = function(){
     // line
     if (this.min + .1 < this.max) return;
@@ -245,25 +221,21 @@ Constraint.prototype.draw = function(){
     ctx.lineTo(this.b.x,this.b.y);
     ctx.stroke();
 }
+
 Particle.prototype.draw = function(){
     ctx.save();
-    //ctx.fillStyle = 'black';
     ctx.translate(this.x, this.y);
-    //ctx.rotate(this.t);
     ctx.scale(sss, sss);
     ctx.translate(-.5, -.5);
-    //square();
     // the ship shape
     ctx.beginPath();
-    ctx.moveTo(0,0);
-    ctx.lineTo(0,1);
-    ctx.lineTo(1,1);
-    ctx.lineTo(1,0);
-    ctx.lineTo(0,0);
+    square();
     ctx.fill();
     ctx.restore();
 }
+
 FixedPoint.prototype.draw = Particle.prototype.draw;
+
 var species = [];
 var replay = function(){
     step = 0;
